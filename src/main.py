@@ -4,8 +4,8 @@ import semantic_similarity
 
 def main():
   # Get the paths to the input and output files.
-  input_file_1 = 'data/word_cloud_1.txt'
-  input_file_2 = 'data/word_cloud_2.txt'
+  input_file_1 = 'data/word1.txt'
+  input_file_2 = 'data/word2.txt'
   output_file_1 = 'data/word_cloud_1.csv'
   output_file_2 = 'data/word_cloud_2.csv'
 
