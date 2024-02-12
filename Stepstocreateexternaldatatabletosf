@@ -1,0 +1,51 @@
+create or replace storage integration gcs_sf_int
+    type = external_stage
+    storage_provider = 'GCS'
+    enabled = TRUE
+    STORAGE_ALLOWED_LOCATIONS = ('gcs://ga_is1_is2_daily_events/');
+// get the external gcs service id 
+    desc storage integration gcs_sf_int 
+    --kyw100000@sfc-va-1-m2y.iam.gserviceaccount.com
+///create and provide the id with privileges in GC Console - IAM - new role and new serivce with five roles
+
+SHOW ROLES dev_civicscience.product_analytics
+// access to create stage in SNOWFLAKE     
+grant create stage on schema dev_civicscience.product_analytics to role BIGQUERY_ANALYTICS_RW
+//CREATE Integration to the role in SNOWFLAKE 
+grant usage on integration gcs_sf_int to role BIGQUERY_ANALYTICS_RW
+//CREATE file format definition in SNOWFLAKE
+create or replace file format ga4_custom_extract_format
+type = csv
+field_delimiter = ','
+skip_header = 0
+error_on_column_count_mismatch = true;
+//CREATE STAGE 
+create stage ga4_data_gs_2_sf_stage
+URL = 'gcs://ga_is1_is2_daily_events/'
+STORAGE_INTEGRATION = gcs_sf_int
+FILE_FORMAT = ga4_custom_extract_format
+;
+// list to check if u can access google cloud storage 
+LIST @ga4_data_gs_2_sf_stage
+//copy the file data from GCS to the SF table using the command below 
+COPY INTO DEV_CIVICSCIENCE.PRODUCT_ANALYTICS.BQ_GA4_EXPORT_IS1_IS2
+from @ga4_data_gs_2_sf_stage/
+FILE_FORMAT = ga4_custom_extract_format
+VALIDATION_MODE=RETURN_ALL_ERRORS;
+
+--COPY INTO mytable
+--  FROM @mystage/myfile.csv.gz
+--  VALIDATION_MODE=RETURN_ALL_ERRORS;
+
+SET qid=last_query_id();
+
+COPY INTO @ga4_data_gs_2_sf_stage/errors/load_errors.txt FROM (SELECT rejected_record FROM TABLE(result_scan($qid)));
+
+//query to verify the load 
+
+select user_id, email, account_name, event_name, eventdate QUESTION_SEARCHED from DEV_CIVICSCIENCE.PRODUCT_ANALYTICS.BQ_GA4_EXPORT_IS1_IS2
+where eventdate = '2023-07-21'
+    and source = 'IS1 Source'
+    AND ACCOUNT_NAME NOT IN ('CivicScience')
+    limit 100 
+    ;
